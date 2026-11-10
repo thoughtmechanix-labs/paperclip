@@ -1703,6 +1703,26 @@ describe("TaskChatComposer", () => {
     ).toBeNull();
   });
 
+  it("sends a chat message when crypto.randomUUID is unavailable", async () => {
+    const onAdd = vi.fn().mockResolvedValue(undefined);
+    const originalCrypto = globalThis.crypto;
+    vi.stubGlobal("crypto", { getRandomValues: originalCrypto.getRandomValues.bind(originalCrypto) });
+    try {
+      renderComposer({ onAdd, workMode: "standard", conversationMode: true });
+      typeText("Hello Monica");
+      expect(sendButton().disabled).toBe(false);
+      flushSync(() => sendButton().click());
+      await flushAsync();
+      expect(onAdd).toHaveBeenCalledTimes(1);
+      expect(onAdd.mock.calls[0]?.[0]).toBe("Hello Monica");
+      expect(onAdd.mock.calls[0]?.[4]).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("appends file references after typed prose on submit", async () => {
     const onAdd = vi.fn().mockResolvedValue(undefined);
     const onAttachImage = vi.fn().mockResolvedValue({
